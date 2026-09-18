@@ -26,14 +26,12 @@ enum CustomEvent {
 }
 
 pub fn log_debug(msg: &str) {
-    if let Some(config_dir) = dirs::config_dir() {
-        let dir = config_dir.join("we-gallery");
-        let _ = std::fs::create_dir_all(&dir);
-        let log_file = dir.join("debug.log");
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_file) {
-            use std::io::Write;
-            let _ = writeln!(f, "[DEBUG] {}", msg);
-        }
+    let dir = config::Config::config_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let log_file = dir.join("debug.log");
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_file) {
+        use std::io::Write;
+        let _ = writeln!(f, "[DEBUG] {}", msg);
     }
 }
 

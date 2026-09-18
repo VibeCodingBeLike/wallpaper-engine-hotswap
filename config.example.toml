@@ -1,6 +1,6 @@
 # =============================================================================
 # Wallpaper Engine Hotswap - Configuration File
-# Location: %APPDATA%\we-gallery\config.toml
+# Location: ~/.config/we-gallery/config.toml (or %USERPROFILE%\.config\we-gallery\config.toml)
 # =============================================================================
 
 [theme]

@@ -133,7 +133,7 @@ Output packages will be generated in the `dist/` directory.
 
 ## ⚙️ Configuration Reference
 
-Configuration is stored in **`%APPDATA%\we-gallery\config.toml`**. A documented template is provided in [`config.example.toml`](config.example.toml).
+Configuration is stored in **`~/.config/we-gallery/config.toml`** (or `%USERPROFILE%\.config\we-gallery\config.toml`). A documented template is provided in [`config.example.toml`](config.example.toml).
 
 ```toml
 [theme]

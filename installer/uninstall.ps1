@@ -9,7 +9,7 @@ $ErrorActionPreference = "SilentlyContinue"
 
 $AppName = "Wallpaper Engine Hotswap"
 $InstallDir = Join-Path $env:LOCALAPPDATA "Programs\wallpaper-engine-hotswap"
-$ConfigDir = Join-Path $env:APPDATA "we-gallery"
+$ConfigDir = if ($env:XDG_CONFIG_HOME) { Join-Path $env:XDG_CONFIG_HOME "we-gallery" } else { Join-Path $HOME ".config\we-gallery" }
 
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "   Uninstalling $AppName" -ForegroundColor Cyan

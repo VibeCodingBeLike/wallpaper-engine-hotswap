@@ -270,11 +270,20 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn config_dir() -> PathBuf {
+        if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+            return PathBuf::from(xdg).join("we-gallery");
+        }
+        if let Some(home) = dirs::home_dir() {
+            return home.join(".config").join("we-gallery");
+        }
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("we-gallery")
+    }
+
     pub fn config_path() -> PathBuf {
-        let base = std::env::var("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")));
-        base.join("we-gallery").join("config.toml")
+        Self::config_dir().join("config.toml")
     }
 
     pub fn last_modified() -> Option<std::time::SystemTime> {
@@ -283,6 +292,18 @@ impl Config {
 
     pub fn load() -> Self {
         let path = Self::config_path();
+        if !path.exists() {
+            // Check legacy AppData path to migrate seamlessly if it exists
+            if let Some(legacy_base) = dirs::config_dir() {
+                let legacy_path = legacy_base.join("we-gallery").join("config.toml");
+                if legacy_path.exists() {
+                    if let Ok(contents) = fs::read_to_string(&legacy_path) {
+                        let _ = fs::create_dir_all(Self::config_dir());
+                        let _ = fs::write(&path, contents);
+                    }
+                }
+            }
+        }
         if path.exists() {
             if let Ok(contents) = fs::read_to_string(&path) {
                 if let Ok(val) = toml::from_str::<toml::Value>(&contents) {
