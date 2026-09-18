@@ -48,7 +48,9 @@ close_on_backdrop_click = true # Close gallery when clicking outside cards and b
 close_on_focus_loss = true     # Close gallery when another window takes focus
 
 [keybinds]
+# Modifiers: ctrl, alt, shift, win, hyper (= ctrl+shift+win+alt simultaneously)
 toggle_gallery = "ctrl+alt+g"  # Global hotkey to summon / dismiss gallery
+                               # Example with hyper key: toggle_gallery = "hyper+g"
 apply_wallpaper = "return"     # Apply selected wallpaper to active monitor
 apply_to_all = "ctrl+return"   # Apply selected wallpaper to all connected monitors
 close = "escape"               # Close gallery

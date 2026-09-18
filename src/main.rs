@@ -321,7 +321,8 @@ fn main() {
 
     let mut is_visible = false;
     let mut is_closing = false;
-    let mut fade_alpha = 1.0f32;
+    let mut is_opening = false;
+    let mut fade_alpha = 0.0f32;
     let mut active_monitor_idx = 0usize;
     let mut selected_index = 0usize;
     let mut scroll_offset = 0.0f32;
@@ -365,7 +366,8 @@ fn main() {
                 } else {
                     log_debug("Showing gallery window...");
                     is_closing = false;
-                    fade_alpha = 1.0;
+                    is_opening = true;
+                    fade_alpha = 0.0;
                     last_frame_time = Instant::now();
                     last_config_mtime = Config::last_modified();
                     config = Config::load();
@@ -684,17 +686,25 @@ fn main() {
                         last_frame_time = now;
 
                         if is_closing {
-                            let fade_speed = dt / 0.10; // Smooth 100ms fade-out at any refresh rate (240Hz, 360Hz, etc.)
+                            let fade_speed = dt / 0.10; // Smooth 100ms fade-out
                             fade_alpha = (fade_alpha - fade_speed).max(0.0);
                             if fade_alpha <= 0.01 {
                                 is_visible = false;
                                 is_closing = false;
-                                fade_alpha = 1.0;
+                                is_opening = false;
+                                fade_alpha = 0.0;
                                 window.set_visible(false);
                                 cached_pixmap = None;
                                 trim_memory();
                                 target.set_control_flow(ControlFlow::Wait);
                                 return;
+                            }
+                        } else if is_opening {
+                            let fade_speed = dt / 0.10; // Smooth 100ms fade-in
+                            fade_alpha = (fade_alpha + fade_speed).min(1.0);
+                            if fade_alpha >= 0.99 {
+                                fade_alpha = 1.0;
+                                is_opening = false;
                             }
                         }
 
@@ -786,7 +796,7 @@ fn main() {
                             windows_sys::Win32::Graphics::Dwm::DwmFlush();
                         }
 
-                        if is_closing || is_animating_scroll {
+                        if is_closing || is_opening || is_animating_scroll {
                             window.request_redraw();
                             target.set_control_flow(ControlFlow::Poll);
                         } else if is_visible {

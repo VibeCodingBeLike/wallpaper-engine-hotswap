@@ -9,6 +9,8 @@ pub fn parse_hotkey(hotkey_str: &str) -> Option<(u32, u32)> {
 
     for part in parts {
         match part.to_lowercase().as_str() {
+            // Hyper = Ctrl + Shift + Win + Alt (all four modifiers at once)
+            "hyper" => modifiers |= MOD_CONTROL as u32 | MOD_SHIFT as u32 | MOD_WIN as u32 | MOD_ALT as u32,
             "ctrl" | "control" => modifiers |= MOD_CONTROL as u32,
             "alt" => modifiers |= MOD_ALT as u32,
             "shift" => modifiers |= MOD_SHIFT as u32,

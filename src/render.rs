@@ -932,9 +932,52 @@ pub fn render_gallery(
     // 4. Draw Bottom Hint Bar
     if ui.show_hint_bar {
         let kb = &config.keybinds;
+        // Title-case each key token for a polished look (e.g. "ctrl+alt+g" → "Ctrl+Alt+G")
+        let fmt_key = |s: &str| -> String {
+            s.split('+')
+                .map(|tok| {
+                    let t = tok.trim().to_lowercase();
+                    match t.as_str() {
+                        "ctrl" => "Ctrl".to_string(),
+                        "alt" => "Alt".to_string(),
+                        "shift" => "Shift".to_string(),
+                        "win" | "super" | "windows" => "Win".to_string(),
+                        "hyper" => "Hyper".to_string(),
+                        "return" | "enter" => "Enter".to_string(),
+                        "escape" | "esc" => "Esc".to_string(),
+                        "space" => "Space".to_string(),
+                        "tab" => "Tab".to_string(),
+                        "left" => "←".to_string(),
+                        "right" => "→".to_string(),
+                        "up" => "↑".to_string(),
+                        "down" => "↓".to_string(),
+                        "pageup" | "page_up" | "pgup" => "PgUp".to_string(),
+                        "pagedown" | "page_down" | "pgdn" => "PgDn".to_string(),
+                        "home" => "Home".to_string(),
+                        "end" => "End".to_string(),
+                        "delete" | "del" => "Del".to_string(),
+                        _ => {
+                            let mut chars = t.chars();
+                            match chars.next() {
+                                Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+                                None => String::new(),
+                            }
+                        }
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("+")
+        };
         let hint_text = format!(
-            "{} / {} Scroll   •   {} Apply   •   {} Exclude   •   {} Show Hidden   •   {} Switch Monitor   •   {} Reload   •   {} Close",
-            kb.left, kb.right, kb.apply_wallpaper, kb.toggle_exclude, kb.toggle_hidden, kb.switch_monitor, kb.reload_config, kb.close
+            "{}/{} Scroll  •  {} Apply  •  {} All  •  {} Exclude  •  {} Hidden  •  {} Monitor  •  {} Reload  •  {} Close",
+            fmt_key(&kb.left), fmt_key(&kb.right),
+            fmt_key(&kb.apply_wallpaper),
+            fmt_key(&kb.apply_to_all),
+            fmt_key(&kb.toggle_exclude),
+            fmt_key(&kb.toggle_hidden),
+            fmt_key(&kb.switch_monitor),
+            fmt_key(&kb.reload_config),
+            fmt_key(&kb.close),
         );
 
         let hint_w = fonts.text_width(&hint_text, 13.0, false);
