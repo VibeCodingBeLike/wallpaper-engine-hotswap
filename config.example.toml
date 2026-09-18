@@ -69,7 +69,23 @@ open_in_explorer = "e"         # Open active wallpaper folder in Windows Explore
 follow_cursor = true           # Open gallery on the monitor where mouse cursor resides
 show_excluded = false          # Start gallery with excluded wallpapers hidden by default
 
+# -----------------------------------------------------------------------------
+# TWO LAYERS OF HIDDEN WALLPAPERS
+# -----------------------------------------------------------------------------
+
+# Layer 1: Soft-Hidden Wallpapers (toggle with 'x', reveal with 'h')
+# Ideal for NSFW content or temporary clutter you want hidden by default,
+# but still want to be able to browse by pressing 'h' to show hidden.
 [excluded_wallpapers]
-# Wallpapers excluded per monitor (format: Monitor<Index> = ["id1", "id2", ...])
 Monitor0 = []
 Monitor1 = []
+
+# Layer 2: Permanently Disabled Wallpapers (Config-Only, NEVER shown)
+# Wallpapers listed here are completely filtered out and will NEVER appear
+# in the gallery on the specified monitor, even when pressing 'h' to show hidden.
+# Perfect for portrait wallpapers that don't fit on landscape monitors.
+# Supports per-monitor ('Monitor0', 'Monitor1') and 'global' (all monitors).
+[disabled_wallpapers]
+# Monitor0 = ["Clochard_Portrait_Custom", "some_portrait_wp"]
+# global = ["globally_unwanted_wp"]
+

@@ -409,11 +409,15 @@ fn main() {
 
     let refresh_displayed = |all: &[WallpaperItem], cfg: &Config, mon: usize, show_h: bool| -> Vec<WallpaperItem> {
         let mon_key = format!("Monitor{}", mon);
-        if show_h {
-            all.to_vec()
-        } else {
-            all.iter().filter(|w| !cfg.is_excluded(&mon_key, &w.id)).cloned().collect()
-        }
+        all.iter()
+            // Layer 2: Permanently disabled/blocked wallpapers are NEVER shown on this monitor,
+            // even if show_hidden ('h') is toggled on.
+            .filter(|w| !cfg.is_disabled(&mon_key, &w.id))
+            // Layer 1: Excluded/soft-hidden wallpapers (NSFW, etc.) are hidden by default,
+            // but revealed when the user presses 'h' (show_hidden = true).
+            .filter(|w| show_h || !cfg.is_excluded(&mon_key, &w.id))
+            .cloned()
+            .collect()
     };
 
     displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);

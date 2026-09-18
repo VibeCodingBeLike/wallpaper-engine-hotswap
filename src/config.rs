@@ -321,6 +321,8 @@ pub struct Config {
     pub behavior: BehaviorConfig,
     #[serde(default)]
     pub excluded_wallpapers: HashMap<String, Vec<String>>,
+    #[serde(default)]
+    pub disabled_wallpapers: HashMap<String, Vec<String>>,
 }
 
 impl Default for Config {
@@ -328,6 +330,10 @@ impl Default for Config {
         let mut excluded = HashMap::new();
         excluded.insert("Monitor0".to_string(), Vec::new());
         excluded.insert("Monitor1".to_string(), Vec::new());
+
+        let mut disabled = HashMap::new();
+        disabled.insert("Monitor0".to_string(), Vec::new());
+        disabled.insert("Monitor1".to_string(), Vec::new());
 
         Self {
             theme: ThemeConfig {
@@ -338,6 +344,7 @@ impl Default for Config {
             keybinds: KeybindsConfig::default(),
             behavior: BehaviorConfig::default(),
             excluded_wallpapers: excluded,
+            disabled_wallpapers: disabled,
         }
     }
 }
@@ -491,10 +498,20 @@ impl Config {
             }
         }
 
-        // 6. Excluded Wallpapers section
+        // 6. Excluded Wallpapers section (Layer 1: soft-hidden, toggleable with 'x', reveal with 'h')
         if let Some(ex_val) = val.get("excluded_wallpapers") {
             if let Ok(user_ex) = ex_val.clone().try_into::<HashMap<String, Vec<String>>>() {
                 cfg.excluded_wallpapers = user_ex;
+            }
+        }
+
+        // 7. Disabled / Permanently Hidden Wallpapers section (Layer 2: config-only, NEVER shown even with 'h')
+        for key in &["disabled_wallpapers", "blocked_wallpapers", "always_hidden_wallpapers", "blacklist"] {
+            if let Some(dis_val) = val.get(*key) {
+                if let Ok(user_dis) = dis_val.clone().try_into::<HashMap<String, Vec<String>>>() {
+                    cfg.disabled_wallpapers = user_dis;
+                    break;
+                }
             }
         }
 
@@ -569,6 +586,22 @@ impl Config {
             .unwrap_or(false)
     }
 
+    pub fn is_disabled(&self, monitor_key: &str, id: &str) -> bool {
+        // Check per-monitor disabled list
+        if let Some(list) = self.disabled_wallpapers.get(monitor_key) {
+            if list.iter().any(|item| item == id) {
+                return true;
+            }
+        }
+        // Check global / wildcard disabled list if specified
+        if let Some(list) = self.disabled_wallpapers.get("global").or_else(|| self.disabled_wallpapers.get("*")) {
+            if list.iter().any(|item| item == id) {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn toggle_excluded(&mut self, monitor_key: &str, id: &str) -> bool {
         let list = self.excluded_wallpapers.entry(monitor_key.to_string()).or_default();
         if let Some(pos) = list.iter().position(|x| x == id) {
@@ -631,5 +664,41 @@ mod tests {
         assert_eq!(ui.show_title, false);
         assert_eq!(ui.show_close_button, false);
         assert_eq!(ui.show_hidden_button, true);
+    }
+
+    #[test]
+    fn test_two_layer_hidden_and_disabled() {
+        let toml_str = r#"
+        [excluded_wallpapers]
+        Monitor0 = ["nsfw_wallpaper_1", "clutter_wp"]
+
+        [disabled_wallpapers]
+        Monitor0 = ["portrait_wallpaper_on_landscape"]
+        global = ["globally_broken_wallpaper"]
+        "#;
+
+        let val: toml::Value = toml::from_str(toml_str).unwrap();
+        let mut cfg = Config::default();
+        if let Some(ex_val) = val.get("excluded_wallpapers") {
+            if let Ok(user_ex) = ex_val.clone().try_into() {
+                cfg.excluded_wallpapers = user_ex;
+            }
+        }
+        if let Some(dis_val) = val.get("disabled_wallpapers") {
+            if let Ok(user_dis) = dis_val.clone().try_into() {
+                cfg.disabled_wallpapers = user_dis;
+            }
+        }
+
+        // Layer 1: Soft-hidden (toggled via 'x', shown with 'h')
+        assert!(cfg.is_excluded("Monitor0", "nsfw_wallpaper_1"));
+        assert!(!cfg.is_excluded("Monitor1", "nsfw_wallpaper_1"));
+
+        // Layer 2: Hard-disabled (never shown, config-only)
+        assert!(cfg.is_disabled("Monitor0", "portrait_wallpaper_on_landscape"));
+        assert!(!cfg.is_disabled("Monitor1", "portrait_wallpaper_on_landscape"));
+        // Global disabled matches on any monitor
+        assert!(cfg.is_disabled("Monitor0", "globally_broken_wallpaper"));
+        assert!(cfg.is_disabled("Monitor1", "globally_broken_wallpaper"));
     }
 }
