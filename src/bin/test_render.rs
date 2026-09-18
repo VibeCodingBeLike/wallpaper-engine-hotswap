@@ -12,7 +12,7 @@ use tiny_skia::Pixmap;
 
 fn main() {
     let config = Config::load();
-    let wallpapers = scan_wallpapers();
+    let wallpapers = scan_wallpapers(config.behavior.include_default_projects);
     println!("Loaded {} wallpapers", wallpapers.len());
 
     let width = 2560;

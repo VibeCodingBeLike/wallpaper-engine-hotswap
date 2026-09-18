@@ -294,6 +294,8 @@ pub struct BehaviorConfig {
     pub follow_cursor: bool,
     #[serde(default = "default_false")]
     pub show_excluded: bool,
+    #[serde(default = "default_true")]
+    pub include_default_projects: bool,
 }
 
 fn default_false() -> bool { false }
@@ -303,6 +305,7 @@ impl Default for BehaviorConfig {
         Self {
             follow_cursor: true,
             show_excluded: false,
+            include_default_projects: true,
         }
     }
 }

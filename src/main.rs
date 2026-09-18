@@ -377,7 +377,7 @@ fn main() {
     let fonts = FontRenderer::new();
     let mut image_cache = ImageCache::new();
 
-    let mut all_wallpapers = scan_wallpapers();
+    let mut all_wallpapers = scan_wallpapers(config.behavior.include_default_projects);
     let mut displayed_wallpapers: Vec<WallpaperItem>;
 
     let mut is_visible = false;
@@ -448,7 +448,7 @@ fn main() {
                     image_cache.clear();
                     cached_pixmap = None;
                     show_hidden = config.behavior.show_excluded;
-                    all_wallpapers = scan_wallpapers();
+                    all_wallpapers = scan_wallpapers(config.behavior.include_default_projects);
 
                     // Detect monitor from current cursor position
                     let (cx, cy) = get_cursor_pos();
@@ -753,7 +753,7 @@ fn main() {
                                 }
                                 image_cache.clear();
                                 cached_pixmap = None;
-                                all_wallpapers = scan_wallpapers();
+                                all_wallpapers = scan_wallpapers(config.behavior.include_default_projects);
                                 show_hidden = config.behavior.show_excluded;
                                 displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
                                 selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
@@ -909,7 +909,7 @@ fn main() {
                         }
                         image_cache.clear();
                         cached_pixmap = None;
-                        all_wallpapers = scan_wallpapers();
+                        all_wallpapers = scan_wallpapers(config.behavior.include_default_projects);
                         show_hidden = config.behavior.show_excluded;
                         displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
                         selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));

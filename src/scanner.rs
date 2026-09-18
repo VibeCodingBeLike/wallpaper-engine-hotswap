@@ -55,7 +55,7 @@ fn find_steam_libraries() -> Vec<PathBuf> {
     libraries.into_iter().filter(|p| p.exists()).collect()
 }
 
-pub fn scan_wallpapers() -> Vec<WallpaperItem> {
+pub fn scan_wallpapers(include_default_projects: bool) -> Vec<WallpaperItem> {
     let mut items = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();
 
@@ -68,7 +68,9 @@ pub fn scan_wallpapers() -> Vec<WallpaperItem> {
         let we_projects = lib.join("steamapps").join("common").join("wallpaper_engine").join("projects");
         if we_projects.exists() {
             search_dirs.push(we_projects.join("myprojects"));
-            search_dirs.push(we_projects.join("defaultprojects"));
+            if include_default_projects {
+                search_dirs.push(we_projects.join("defaultprojects"));
+            }
         }
     }
 

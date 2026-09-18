@@ -2,7 +2,7 @@
 mod scanner;
 
 fn main() {
-    let items = scanner::scan_wallpapers();
+    let items = scanner::scan_wallpapers(true);
     println!("Found {} items", items.len());
     for item in items.iter().take(10) {
         if let Some(ref p) = item.preview_path {
