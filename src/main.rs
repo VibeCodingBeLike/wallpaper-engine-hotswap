@@ -25,15 +25,7 @@ enum CustomEvent {
     ToggleGallery,
 }
 
-pub fn log_debug(msg: &str) {
-    let dir = config::Config::config_dir();
-    let _ = std::fs::create_dir_all(&dir);
-    let log_file = dir.join("debug.log");
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(log_file) {
-        use std::io::Write;
-        let _ = writeln!(f, "[DEBUG] {}", msg);
-    }
-}
+pub use config::log_debug;
 
 fn parse_edid_name(edid: &[u8]) -> Option<String> {
     for &offset in &[54, 72, 90, 108] {

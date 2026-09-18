@@ -94,32 +94,96 @@ impl Default for StyleConfig {
     }
 }
 
+fn deserialize_flexible_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct BoolOrNumVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for BoolOrNumVisitor {
+        type Value = bool;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a boolean or boolean-like value (true/false, 1/0, 'true'/'false')")
+        }
+
+        fn visit_bool<E>(self, v: bool) -> Result<bool, E> {
+            Ok(v)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<bool, E> {
+            Ok(v != 0)
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<bool, E> {
+            Ok(v != 0)
+        }
+
+        fn visit_f64<E>(self, v: f64) -> Result<bool, E> {
+            Ok(v > 0.0)
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<bool, E>
+        where
+            E: serde::de::Error,
+        {
+            match v.to_lowercase().trim() {
+                "true" | "yes" | "1" | "on" | "enable" | "enabled" => Ok(true),
+                "false" | "no" | "0" | "off" | "disable" | "disabled" => Ok(false),
+                _ => Err(E::custom(format!("invalid boolean string '{}'", v))),
+            }
+        }
+    }
+
+    deserializer.deserialize_any(BoolOrNumVisitor)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "top_bar")]
     pub show_top_bar: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "monitor_tabs")]
     pub show_monitor_tabs: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "title")]
     pub show_title: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "hidden_button")]
     pub show_hidden_button: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "close_button")]
     pub show_close_button: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "hint_bar")]
     pub show_hint_bar: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "hidden_badge")]
     pub show_hidden_badge: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "tint_excluded_cards")]
     pub tint_excluded: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "dim_unselected_cards")]
     pub dim_unselected: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool", alias = "selection_border", alias = "show_border")]
     pub show_selection_border: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool")]
     pub close_on_backdrop_click: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_flexible_bool")]
     pub close_on_focus_loss: bool,
+
+    // Fallbacks: allow style & geometry settings under [ui] as well
+    #[serde(default)]
+    pub backdrop_opacity: Option<f32>,
+    #[serde(default)]
+    pub card_width: Option<u32>,
+    #[serde(default)]
+    pub card_height: Option<u32>,
+    #[serde(default)]
+    pub card_shear: Option<f32>,
+    #[serde(default)]
+    pub border_width: Option<f32>,
+    #[serde(default)]
+    pub border_glow: Option<bool>,
+    #[serde(default)]
+    pub glow_radius: Option<f32>,
+    #[serde(default)]
+    pub motion_blur: Option<bool>,
+    #[serde(default)]
+    pub motion_blur_strength: Option<f32>,
 }
 
 fn default_true() -> bool { true }
@@ -139,6 +203,15 @@ impl Default for UiConfig {
             show_selection_border: true,
             close_on_backdrop_click: true,
             close_on_focus_loss: true,
+            backdrop_opacity: None,
+            card_width: None,
+            card_height: None,
+            card_shear: None,
+            border_width: None,
+            border_glow: None,
+            glow_radius: None,
+            motion_blur: None,
+            motion_blur_strength: None,
         }
     }
 }
@@ -269,6 +342,16 @@ impl Default for Config {
     }
 }
 
+pub fn log_debug(msg: &str) {
+    let dir = Config::config_dir();
+    let _ = fs::create_dir_all(&dir);
+    let log_file = dir.join("debug.log");
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(log_file) {
+        use std::io::Write;
+        let _ = writeln!(f, "[DEBUG] {}", msg);
+    }
+}
+
 impl Config {
     pub fn config_dir() -> PathBuf {
         if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
@@ -304,46 +387,117 @@ impl Config {
                 }
             }
         }
-        if path.exists() {
-            if let Ok(contents) = fs::read_to_string(&path) {
-                if let Ok(val) = toml::from_str::<toml::Value>(&contents) {
-                    let mut cfg = Config::default();
-                    if let Some(preset) = val.get("theme").and_then(|t| t.get("preset")).and_then(|p| p.as_str()) {
-                        cfg.theme.preset = preset.to_string();
-                        cfg.apply_theme_preset();
+
+        if !path.exists() {
+            let cfg = Self::default();
+            let _ = cfg.save();
+            return cfg;
+        }
+
+        let contents = match fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                log_debug(&format!("Failed to read config {}: {}", path.display(), e));
+                return Self::default();
+            }
+        };
+
+        log_debug(&format!("Loading configuration from {}", path.display()));
+
+        let val: toml::Value = match toml::from_str(&contents) {
+            Ok(v) => v,
+            Err(e) => {
+                log_debug(&format!("TOML syntax error in {}: {}", path.display(), e));
+                return Self::default();
+            }
+        };
+
+        let mut cfg = Self::default();
+
+        // 1. Theme preset
+        if let Some(preset) = val.get("theme").and_then(|t| t.get("preset")).and_then(|p| p.as_str()) {
+            cfg.theme.preset = preset.to_string();
+            cfg.apply_theme_preset();
+        }
+
+        // 2. Style section
+        if let Some(style_val) = val.get("style") {
+            match style_val.clone().try_into::<StyleConfig>() {
+                Ok(user_style) => {
+                    if let Some(tbl) = style_val.as_table() {
+                        if tbl.contains_key("accent_color") { cfg.style.accent_color = user_style.accent_color; }
+                        if tbl.contains_key("bg_color") { cfg.style.bg_color = user_style.bg_color; }
+                        if tbl.contains_key("surface_color") { cfg.style.surface_color = user_style.surface_color; }
+                        if tbl.contains_key("overlay_color") { cfg.style.overlay_color = user_style.overlay_color; }
+                        if tbl.contains_key("muted_color") { cfg.style.muted_color = user_style.muted_color; }
+                        if tbl.contains_key("text_color") { cfg.style.text_color = user_style.text_color; }
+                        if tbl.contains_key("highlight_color") { cfg.style.highlight_color = user_style.highlight_color; }
+                        if tbl.contains_key("card_width") { cfg.style.card_width = user_style.card_width; }
+                        if tbl.contains_key("card_height") { cfg.style.card_height = user_style.card_height; }
+                        if tbl.contains_key("card_shear") { cfg.style.card_shear = user_style.card_shear; }
+                        if tbl.contains_key("border_width") { cfg.style.border_width = user_style.border_width; }
+                        if tbl.contains_key("dim_unselected") { cfg.style.dim_unselected = user_style.dim_unselected; }
+                        if tbl.contains_key("backdrop_opacity") { cfg.style.backdrop_opacity = user_style.backdrop_opacity; }
+                        if tbl.contains_key("border_glow") { cfg.style.border_glow = user_style.border_glow; }
+                        if tbl.contains_key("glow_radius") { cfg.style.glow_radius = user_style.glow_radius; }
+                        if tbl.contains_key("motion_blur") { cfg.style.motion_blur = user_style.motion_blur; }
+                        if tbl.contains_key("motion_blur_strength") { cfg.style.motion_blur_strength = user_style.motion_blur_strength; }
                     }
-                    if let Ok(user_cfg) = toml::from_str::<Config>(&contents) {
-                        if let Some(style_val) = val.get("style").and_then(|s| s.as_table()) {
-                            let mut final_style = cfg.style.clone();
-                            if style_val.contains_key("accent_color") { final_style.accent_color = user_cfg.style.accent_color.clone(); }
-                            if style_val.contains_key("bg_color") { final_style.bg_color = user_cfg.style.bg_color.clone(); }
-                            if style_val.contains_key("surface_color") { final_style.surface_color = user_cfg.style.surface_color.clone(); }
-                            if style_val.contains_key("overlay_color") { final_style.overlay_color = user_cfg.style.overlay_color.clone(); }
-                            if style_val.contains_key("muted_color") { final_style.muted_color = user_cfg.style.muted_color.clone(); }
-                            if style_val.contains_key("text_color") { final_style.text_color = user_cfg.style.text_color.clone(); }
-                            if style_val.contains_key("highlight_color") { final_style.highlight_color = user_cfg.style.highlight_color.clone(); }
-                            if style_val.contains_key("card_width") { final_style.card_width = user_cfg.style.card_width; }
-                            if style_val.contains_key("card_height") { final_style.card_height = user_cfg.style.card_height; }
-                            if style_val.contains_key("card_shear") { final_style.card_shear = user_cfg.style.card_shear; }
-                            if style_val.contains_key("border_width") { final_style.border_width = user_cfg.style.border_width; }
-                            if style_val.contains_key("dim_unselected") { final_style.dim_unselected = user_cfg.style.dim_unselected; }
-                            if style_val.contains_key("backdrop_opacity") { final_style.backdrop_opacity = user_cfg.style.backdrop_opacity; }
-                            if style_val.contains_key("border_glow") { final_style.border_glow = user_cfg.style.border_glow; }
-                            if style_val.contains_key("glow_radius") { final_style.glow_radius = user_cfg.style.glow_radius; }
-                            if style_val.contains_key("motion_blur") { final_style.motion_blur = user_cfg.style.motion_blur; }
-                            if style_val.contains_key("motion_blur_strength") { final_style.motion_blur_strength = user_cfg.style.motion_blur_strength; }
-                            cfg = user_cfg;
-                            cfg.style = final_style;
-                        } else {
-                            cfg = user_cfg;
-                        }
-                        return cfg;
-                    }
+                }
+                Err(e) => {
+                    log_debug(&format!("Failed to deserialize [style] section: {}", e));
                 }
             }
         }
-        let cfg = Self::default();
-        let _ = cfg.save();
+
+        // 3. UI section
+        if let Some(ui_val) = val.get("ui") {
+            match ui_val.clone().try_into::<UiConfig>() {
+                Ok(user_ui) => {
+                    if let Some(bo) = user_ui.backdrop_opacity { cfg.style.backdrop_opacity = bo; }
+                    if let Some(cw) = user_ui.card_width { cfg.style.card_width = cw; }
+                    if let Some(ch) = user_ui.card_height { cfg.style.card_height = ch; }
+                    if let Some(cs) = user_ui.card_shear { cfg.style.card_shear = cs; }
+                    if let Some(bw) = user_ui.border_width { cfg.style.border_width = bw; }
+                    if let Some(bg) = user_ui.border_glow { cfg.style.border_glow = bg; }
+                    if let Some(gr) = user_ui.glow_radius { cfg.style.glow_radius = gr; }
+                    if let Some(mb) = user_ui.motion_blur { cfg.style.motion_blur = mb; }
+                    if let Some(mbs) = user_ui.motion_blur_strength { cfg.style.motion_blur_strength = mbs; }
+                    log_debug(&format!(
+                        "Loaded [ui] config: show_top_bar={}, show_hint_bar={}, show_selection_border={}, dim_unselected={}",
+                        user_ui.show_top_bar, user_ui.show_hint_bar, user_ui.show_selection_border, user_ui.dim_unselected
+                    ));
+                    cfg.ui = user_ui;
+                }
+                Err(e) => {
+                    log_debug(&format!("Failed to deserialize [ui] section: {}", e));
+                }
+            }
+        }
+
+        // 4. Keybinds section
+        if let Some(kb_val) = val.get("keybinds") {
+            match kb_val.clone().try_into::<KeybindsConfig>() {
+                Ok(user_kb) => cfg.keybinds = user_kb,
+                Err(e) => log_debug(&format!("Failed to deserialize [keybinds] section: {}", e)),
+            }
+        }
+
+        // 5. Behavior section
+        if let Some(beh_val) = val.get("behavior") {
+            match beh_val.clone().try_into::<BehaviorConfig>() {
+                Ok(user_beh) => cfg.behavior = user_beh,
+                Err(e) => log_debug(&format!("Failed to deserialize [behavior] section: {}", e)),
+            }
+        }
+
+        // 6. Excluded Wallpapers section
+        if let Some(ex_val) = val.get("excluded_wallpapers") {
+            if let Ok(user_ex) = ex_val.clone().try_into::<HashMap<String, Vec<String>>>() {
+                cfg.excluded_wallpapers = user_ex;
+            }
+        }
+
         cfg
     }
 
@@ -426,5 +580,56 @@ impl Config {
             let _ = self.save();
             true
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_flexible_ui_parsing() {
+        let toml_str = r#"
+        [ui]
+        show_top_bar = false
+        show_hint_bar = "false"
+        tint_excluded_cards = false
+        dim_unselected = 0.5
+        backdrop_opacity = 0.45
+        card_width = 320
+        "#;
+
+        let val: toml::Value = toml::from_str(toml_str).unwrap();
+        let ui_val = val.get("ui").unwrap();
+        let ui: UiConfig = ui_val.clone().try_into().unwrap();
+
+        assert_eq!(ui.show_top_bar, false);
+        assert_eq!(ui.show_hint_bar, false);
+        assert_eq!(ui.tint_excluded, false);
+        assert_eq!(ui.dim_unselected, true);
+        assert_eq!(ui.backdrop_opacity, Some(0.45));
+        assert_eq!(ui.card_width, Some(320));
+    }
+
+    #[test]
+    fn test_flexible_ui_bool_variants() {
+        let toml_str = r#"
+        [ui]
+        show_top_bar = 0
+        show_hint_bar = "off"
+        show_title = "no"
+        show_close_button = "disabled"
+        show_hidden_button = 1
+        "#;
+
+        let val: toml::Value = toml::from_str(toml_str).unwrap();
+        let ui_val = val.get("ui").unwrap();
+        let ui: UiConfig = ui_val.clone().try_into().unwrap();
+
+        assert_eq!(ui.show_top_bar, false);
+        assert_eq!(ui.show_hint_bar, false);
+        assert_eq!(ui.show_title, false);
+        assert_eq!(ui.show_close_button, false);
+        assert_eq!(ui.show_hidden_button, true);
     }
 }
