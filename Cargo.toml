@@ -6,7 +6,7 @@ authors = ["Kat"]
 description = "High-performance stand-alone Wallpaper Engine gallery & switcher for Windows in Rosé Pine Moon"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/Kat/wallpaper-engine-hotswap"
+repository = "https://github.com/VibeCodingBeLike/wallpaper-engine-hotswap"
 keywords = ["wallpaper-engine", "gallery", "windows", "rose-pine", "desktop"]
 categories = ["gui", "multimedia"]
 

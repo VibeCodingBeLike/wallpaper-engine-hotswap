@@ -6,7 +6,7 @@
 #define MyAppName "Wallpaper Engine Hotswap"
 #define MyAppVersion "0.2.0"
 #define MyAppPublisher "Kat"
-#define MyAppURL "https://github.com/Kat/wallpaper-engine-hotswap"
+#define MyAppURL "https://github.com/VibeCodingBeLike/wallpaper-engine-hotswap"
 #define MyAppExeName "we-gallery.exe"
 
 [Setup]

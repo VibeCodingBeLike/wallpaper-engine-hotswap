@@ -1,34 +1,74 @@
-name: Release
+name: Build & Release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v0.2.0). If omitted, version from Cargo.toml is used.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
 
 jobs:
   build-release:
+    name: Build Windows Release Packages
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust Stable
+        uses: dtolnay/rust-toolchain@stable
 
-    - name: Install Inno Setup
-      run: choco install innosetup --no-progress -y
+      - name: Install Inno Setup
+        run: choco install innosetup -y
 
-    - name: Build Release Binary
-      run: cargo build --release
+      - name: Build Release & Generate Dist Packages
+        shell: pwsh
+        run: |
+          # Run package generator (builds cargo release, Inno Setup wizard, and zip package)
+          .\installer\generate_installer.ps1
 
-    - name: Generate Installer and Packages
-      shell: pwsh
-      run: .\installer\generate_installer.ps1 -SkipBuild
+          # Also copy the standalone bare binary into dist for users who want just the exe
+          Copy-Item .\target\release\we-gallery.exe .\dist\we-gallery.exe -Force
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # List dist files
+          Get-ChildItem .\dist | Select-Object Name, Length
+
+      - name: Determine Release Tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $tag = $env:GITHUB_REF.Substring(10)
+          } elseif ('${{ github.event.inputs.tag_name }}' -ne '') {
+            $tag = '${{ github.event.inputs.tag_name }}'
+          } else {
+            # Extract version from Cargo.toml
+            $cargoToml = Get-Content Cargo.toml -Raw
+            if ($cargoToml -match 'version\s*=\s*"([^"]+)"') {
+              $tag = "v$($matches[1])"
+            } else {
+              $tag = "v0.2.0"
+            }
+          }
+          Write-Host "Determined tag: $tag"
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Wallpaper Engine Hotswap ${{ steps.get_tag.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/*.exe
+            dist/*.zip
