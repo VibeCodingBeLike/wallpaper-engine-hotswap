@@ -1,5 +1,5 @@
 use fontdue::{Font, FontSettings};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use tiny_skia::*;
@@ -272,22 +272,15 @@ pub struct CachedCard {
 
 pub struct ImageCache {
     cache: HashMap<String, CachedCard>,
-    order: VecDeque<String>, // LRU insertion order
 }
-
-// Maximum number of baked card images to keep in memory at once.
-// Each card is roughly 10–20 MB of decoded RGBA pixels, so 40 ≈ 400–800 MB max.
-// 40 is well above the ~15 visible at once while keeping memory bounded.
-const MAX_CACHED_CARDS: usize = 40;
 
 impl ImageCache {
     pub fn new() -> Self {
-        Self { cache: HashMap::new(), order: VecDeque::new() }
+        Self { cache: HashMap::new() }
     }
 
     pub fn clear(&mut self) {
         self.cache.clear();
-        self.order.clear();
     }
 
     pub fn get_or_bake_card(
@@ -429,13 +422,6 @@ impl ImageCache {
                 *p = (sa << 24) | (b << 16) | (g << 8) | r;
             }
 
-            // Evict oldest entry if we've hit the cap
-            if self.cache.len() >= MAX_CACHED_CARDS {
-                if let Some(oldest_key) = self.order.pop_front() {
-                    self.cache.remove(&oldest_key);
-                }
-            }
-            self.order.push_back(key.clone());
             self.cache.insert(key.clone(), CachedCard { normal: baked, dimmed, spans });
         }
         self.cache.get(&key)
