@@ -22,6 +22,7 @@ struct ProjectJson {
     preview: Option<String>,
     #[serde(rename = "type")]
     wp_type: Option<String>,
+    category: Option<String>,
 }
 
 fn find_steam_libraries() -> Vec<PathBuf> {
@@ -100,16 +101,31 @@ pub fn scan_wallpapers(include_default_projects: bool) -> Vec<WallpaperItem> {
             }
 
             let pj_content = fs::read_to_string(&pj_path).unwrap_or_default();
-            let pj: ProjectJson = serde_json::from_str(&pj_content).unwrap_or(ProjectJson {
-                title: None,
-                file: None,
-                preview: None,
-                wp_type: None,
-            });
+            let pj: ProjectJson = match serde_json::from_str(&pj_content) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
 
-            let title = pj.title.unwrap_or_else(|| id.clone());
+            // Filter out non-wallpaper assets (editor effects, presets, shaders, templates)
+            if let Some(ref cat) = pj.category {
+                let cat_lower = cat.to_lowercase();
+                if cat_lower == "asset" || cat_lower == "preset" || cat_lower == "template" {
+                    continue;
+                }
+            }
+
+            // Skip items with missing or blank title (templates, internal assets)
+            let title = match pj.title {
+                Some(t) if !t.trim().is_empty() => t,
+                _ => continue,
+            };
+
             let file_rel = pj.file.unwrap_or_else(|| "scene.json".to_string());
-            let file_target = path.join(file_rel);
+            let file_lower = file_rel.to_lowercase();
+            if file_lower.ends_with("effect.json") || file_lower.ends_with("shader.json") {
+                continue;
+            }
+            let file_target = path.join(&file_rel);
 
             let preview_rel = pj.preview.unwrap_or_else(|| "preview.jpg".to_string());
             let mut preview_path = Some(path.join(preview_rel));
