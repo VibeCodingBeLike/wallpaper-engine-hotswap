@@ -184,9 +184,24 @@ pub struct UiConfig {
     pub motion_blur: Option<bool>,
     #[serde(default)]
     pub motion_blur_strength: Option<f32>,
+    #[serde(default = "default_hint_bar_items")]
+    pub hint_bar_items: Vec<String>,
 }
 
 fn default_true() -> bool { true }
+
+fn default_hint_bar_items() -> Vec<String> {
+    vec![
+        "scroll".to_string(),
+        "apply".to_string(),
+        "apply_to_all".to_string(),
+        "toggle_exclude".to_string(),
+        "toggle_hidden".to_string(),
+        "switch_monitor".to_string(),
+        "reload_config".to_string(),
+        "close".to_string(),
+    ]
+}
 
 impl Default for UiConfig {
     fn default() -> Self {
@@ -212,6 +227,7 @@ impl Default for UiConfig {
             glow_radius: None,
             motion_blur: None,
             motion_blur_strength: None,
+            hint_bar_items: default_hint_bar_items(),
         }
     }
 }
@@ -703,5 +719,24 @@ mod tests {
         // Global disabled matches on any monitor
         assert!(cfg.is_disabled("Monitor0", "globally_broken_wallpaper"));
         assert!(cfg.is_disabled("Monitor1", "globally_broken_wallpaper"));
+    }
+
+    #[test]
+    fn test_hint_bar_items_config() {
+        let toml_str = r#"
+        [ui]
+        hint_bar_items = ["scroll", "apply", "explorer:Folder", "reload", "close"]
+        "#;
+
+        let val: toml::Value = toml::from_str(toml_str).unwrap();
+        let ui_val = val.get("ui").unwrap();
+        let ui: UiConfig = ui_val.clone().try_into().unwrap();
+
+        assert_eq!(ui.hint_bar_items.len(), 5);
+        assert_eq!(ui.hint_bar_items[0], "scroll");
+        assert_eq!(ui.hint_bar_items[1], "apply");
+        assert_eq!(ui.hint_bar_items[2], "explorer:Folder");
+        assert_eq!(ui.hint_bar_items[3], "reload");
+        assert_eq!(ui.hint_bar_items[4], "close");
     }
 }

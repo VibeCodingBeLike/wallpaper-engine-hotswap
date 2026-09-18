@@ -1,29 +1,40 @@
 # Rust build artifacts
 /target/
+*.pdb
+*.ilk
+*.obj
 
 # Executables
 *.exe
 we-gallery.exe
 
+# Local config & logs
+config.toml
+*.log
+debug.log
+
 # Output & test files
 *.png
 test_output.png
-*.log
-debug.log
 
 # IDE & Editor files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+*.bak
 
-# Windows temporary files
+# Windows & OS temporary files
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+.DS_Store
+*.dmp
 
 # Distribution packages generated locally
 dist/
 *.zip
 *.iss.bak
+

@@ -47,6 +47,25 @@ show_selection_border = true   # Draw pink highlight border around focused/hover
 close_on_backdrop_click = true # Close gallery when clicking outside cards and buttons
 close_on_focus_loss = true     # Close gallery when another window takes focus
 
+# Configurable Hint Bar items (order and presence)
+# Available keywords:
+#   "scroll" (left/right), "page" (pageup/pagedown), "jump" (home/end),
+#   "apply" (return), "all" (apply_to_all), "exclude" (toggle_exclude),
+#   "hidden" (toggle_hidden), "monitor" (switch_monitor),
+#   "explorer" (open_in_explorer), "reload" (reload_config), "close" (escape)
+# Custom label format: "action:Custom Label" (e.g. "explorer:Open Folder")
+hint_bar_items = [
+    "scroll",
+    "apply",
+    "all",
+    "exclude",
+    "hidden",
+    "monitor",
+    "explorer",
+    "reload",
+    "close",
+]
+
 [keybinds]
 # Modifiers: ctrl, alt, shift, win, hyper (= ctrl+shift+win+alt simultaneously)
 toggle_gallery = "ctrl+alt+g"  # Global hotkey to summon / dismiss gallery

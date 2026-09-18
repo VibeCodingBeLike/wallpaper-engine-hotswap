@@ -165,6 +165,21 @@ show_selection_border = true   # Highlight border on active card
 close_on_backdrop_click = true # Close gallery when clicking outside cards
 close_on_focus_loss = true     # Close gallery when another window takes focus
 
+# Fully customizable bottom hint bar (order and items)
+# Available actions: "scroll", "page", "jump", "apply", "all", "exclude", "hidden", "monitor", "explorer", "reload", "close"
+# Custom label syntax: "action:Custom Label" (e.g. "explorer:Open Folder")
+hint_bar_items = [
+    "scroll",
+    "apply",
+    "all",
+    "exclude",
+    "hidden",
+    "monitor",
+    "explorer",
+    "reload",
+    "close",
+]
+
 [keybinds]
 # Supported modifiers: ctrl, alt, shift, win / super, and hyper (ctrl+shift+win+alt)
 toggle_gallery = "hyper+up"    # Global summon hotkey (e.g. "hyper+up", "ctrl+alt+g")

@@ -968,17 +968,81 @@ pub fn render_gallery(
                 .collect::<Vec<_>>()
                 .join("+")
         };
-        let hint_text = format!(
-            "{}/{} Scroll  •  {} Apply  •  {} All  •  {} Exclude  •  {} Hidden  •  {} Monitor  •  {} Reload  •  {} Close",
-            fmt_key(&kb.left), fmt_key(&kb.right),
-            fmt_key(&kb.apply_wallpaper),
-            fmt_key(&kb.apply_to_all),
-            fmt_key(&kb.toggle_exclude),
-            fmt_key(&kb.toggle_hidden),
-            fmt_key(&kb.switch_monitor),
-            fmt_key(&kb.reload_config),
-            fmt_key(&kb.close),
-        );
+        let mut hints = Vec::new();
+        for item in &ui.hint_bar_items {
+            let item_trimmed = item.trim();
+            if item_trimmed.is_empty() {
+                continue;
+            }
+            // Allow custom label syntax: "action:Custom Label" or "key:Custom Label"
+            let (key_req, custom_label) = if let Some((k, l)) = item_trimmed.split_once(':') {
+                (k.trim().to_lowercase(), Some(l.trim()))
+            } else {
+                (item_trimmed.to_lowercase(), None)
+            };
+
+            let hint_str = match key_req.as_str() {
+                "scroll" | "navigate" | "left_right" => {
+                    let label = custom_label.unwrap_or("Scroll");
+                    format!("{}/{} {}", fmt_key(&kb.left), fmt_key(&kb.right), label)
+                }
+                "page" | "page_scroll" | "page_left_right" => {
+                    let label = custom_label.unwrap_or("Page");
+                    format!("{}/{} {}", fmt_key(&kb.page_left), fmt_key(&kb.page_right), label)
+                }
+                "jump" | "first_last" | "home_end" => {
+                    let label = custom_label.unwrap_or("Jump");
+                    format!("{}/{} {}", fmt_key(&kb.first), fmt_key(&kb.last), label)
+                }
+                "apply" | "apply_wallpaper" | "enter" => {
+                    let label = custom_label.unwrap_or("Apply");
+                    format!("{} {}", fmt_key(&kb.apply_wallpaper), label)
+                }
+                "all" | "apply_all" | "apply_to_all" => {
+                    let label = custom_label.unwrap_or("All");
+                    format!("{} {}", fmt_key(&kb.apply_to_all), label)
+                }
+                "exclude" | "toggle_exclude" => {
+                    let label = custom_label.unwrap_or("Exclude");
+                    format!("{} {}", fmt_key(&kb.toggle_exclude), label)
+                }
+                "hidden" | "toggle_hidden" => {
+                    let label = custom_label.unwrap_or("Hidden");
+                    format!("{} {}", fmt_key(&kb.toggle_hidden), label)
+                }
+                "monitor" | "switch_monitor" => {
+                    let label = custom_label.unwrap_or("Monitor");
+                    format!("{} {}", fmt_key(&kb.switch_monitor), label)
+                }
+                "explorer" | "open_in_explorer" | "folder" => {
+                    let label = custom_label.unwrap_or("Explorer");
+                    format!("{} {}", fmt_key(&kb.open_in_explorer), label)
+                }
+                "reload" | "reload_config" => {
+                    let label = custom_label.unwrap_or("Reload");
+                    format!("{} {}", fmt_key(&kb.reload_config), label)
+                }
+                "close" | "exit" | "escape" => {
+                    let label = custom_label.unwrap_or("Close");
+                    format!("{} {}", fmt_key(&kb.close), label)
+                }
+                "toggle" | "toggle_gallery" | "summon" => {
+                    let label = custom_label.unwrap_or("Summon");
+                    format!("{} {}", fmt_key(&kb.toggle_gallery), label)
+                }
+                custom if custom_label.is_some() => {
+                    format!("{} {}", fmt_key(custom), custom_label.unwrap())
+                }
+                _ => continue,
+            };
+            hints.push(hint_str);
+        }
+
+        if hints.is_empty() {
+            return hitboxes;
+        }
+
+        let hint_text = hints.join("  •  ");
 
         let hint_w = fonts.text_width(&hint_text, 13.0, false);
         let pill_w = hint_w + 44.0;
