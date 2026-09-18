@@ -19,6 +19,17 @@ pub fn parse_hotkey(hotkey_str: &str) -> Option<(u32, u32)> {
             "tab" => vk = 0x09,
             "return" | "enter" => vk = 0x0D,
             "escape" | "esc" => vk = 0x1B,
+            "backspace" | "back" => vk = 0x08,
+            "delete" | "del" => vk = 0x2E,
+            "insert" | "ins" => vk = 0x2D,
+            "home" => vk = 0x24,
+            "end" => vk = 0x23,
+            "pageup" | "page_up" | "pgup" | "prior" => vk = 0x21,
+            "pagedown" | "page_down" | "pgdn" | "next" => vk = 0x22,
+            "up" | "arrowup" | "arrow_up" => vk = 0x26,
+            "down" | "arrowdown" | "arrow_down" => vk = 0x28,
+            "left" | "arrowleft" | "arrow_left" => vk = 0x25,
+            "right" | "arrowright" | "arrow_right" => vk = 0x27,
             s if s.len() == 1 => {
                 let c = s.chars().next().unwrap();
                 if c.is_ascii_alphanumeric() {
@@ -37,14 +48,17 @@ pub fn parse_hotkey(hotkey_str: &str) -> Option<(u32, u32)> {
     }
 
     if vk != 0 {
+        crate::log_debug(&format!("parse_hotkey('{}') -> modifiers={:#x}, vk={:#x}", hotkey_str, modifiers, vk));
         Some((modifiers, vk))
     } else {
+        crate::log_debug(&format!("parse_hotkey('{}') FAILED: no recognized key", hotkey_str));
         None
     }
 }
 
 pub struct GlobalHotkeyListener {
-    _handle: thread::JoinHandle<()>,
+    thread_id: u32,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
 impl GlobalHotkeyListener {
@@ -52,11 +66,15 @@ impl GlobalHotkeyListener {
     where
         F: Fn() + Send + 'static,
     {
+        let (tx, rx) = std::sync::mpsc::channel();
         let handle = thread::spawn(move || {
+            let tid = unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() };
+            let _ = tx.send(tid);
+
             let (modifiers, vk) = match parse_hotkey(&hotkey_str) {
                 Some(pair) => pair,
                 None => {
-                    // Fallback to Ctrl+Alt+G
+                    crate::log_debug(&format!("Hotkey '{}' failed to parse, falling back to Ctrl+Alt+G", hotkey_str));
                     (MOD_CONTROL as u32 | MOD_ALT as u32 | MOD_NOREPEAT as u32, b'G' as u32)
                 }
             };
@@ -92,9 +110,28 @@ impl GlobalHotkeyListener {
                     }
                 }
                 UnregisterHotKey(std::ptr::null_mut(), HOTKEY_ID);
+                crate::log_debug("Hotkey listener thread exiting cleanly");
             }
         });
 
-        Self { _handle: handle }
+        let thread_id = rx.recv().unwrap_or(0);
+        Self {
+            thread_id,
+            handle: Some(handle),
+        }
+    }
+}
+
+impl Drop for GlobalHotkeyListener {
+    fn drop(&mut self) {
+        if self.thread_id != 0 {
+            unsafe {
+                use windows_sys::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_QUIT};
+                PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0);
+            }
+        }
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
     }
 }

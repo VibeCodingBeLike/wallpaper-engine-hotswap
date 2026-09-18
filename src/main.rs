@@ -346,12 +346,16 @@ fn main() {
     let proxy = event_loop.create_proxy();
 
     // Start native global hotkey listener (0.00% background CPU)
-    let hotkey_combo = config.keybinds.toggle_gallery.clone();
+    let mut current_hotkey_combo = config.keybinds.toggle_gallery.clone();
     let proxy_clone = proxy.clone();
-    let _hotkey_listener = GlobalHotkeyListener::spawn(hotkey_combo, move || {
-        log_debug("Hotkey triggered callback -> sending CustomEvent::ToggleGallery");
-        let _ = proxy_clone.send_event(CustomEvent::ToggleGallery);
-    });
+    let spawn_listener = |combo: &str| {
+        let p = proxy_clone.clone();
+        GlobalHotkeyListener::spawn(combo.to_string(), move || {
+            log_debug("Hotkey triggered callback -> sending CustomEvent::ToggleGallery");
+            let _ = p.send_event(CustomEvent::ToggleGallery);
+        })
+    };
+    let mut _hotkey_listener = spawn_listener(&current_hotkey_combo);
 
     // Create frameless translucent window
     let window = Arc::new(
@@ -434,6 +438,11 @@ fn main() {
                     last_frame_time = Instant::now();
                     last_config_mtime = Config::last_modified();
                     config = Config::load();
+                    if config.keybinds.toggle_gallery != current_hotkey_combo {
+                        log_debug(&format!("Hotkey config changed: '{}' -> '{}'. Updating listener...", current_hotkey_combo, config.keybinds.toggle_gallery));
+                        current_hotkey_combo = config.keybinds.toggle_gallery.clone();
+                        _hotkey_listener = spawn_listener(&current_hotkey_combo);
+                    }
                     image_cache.clear();
                     cached_pixmap = None;
                     show_hidden = config.behavior.show_excluded;
@@ -742,6 +751,11 @@ fn main() {
                                 log_debug("Manual reload config triggered (F5 / Ctrl+R)");
                                 last_config_mtime = Config::last_modified();
                                 config = Config::load();
+                                if config.keybinds.toggle_gallery != current_hotkey_combo {
+                                    log_debug(&format!("Hotkey config changed: '{}' -> '{}'. Updating listener...", current_hotkey_combo, config.keybinds.toggle_gallery));
+                                    current_hotkey_combo = config.keybinds.toggle_gallery.clone();
+                                    _hotkey_listener = spawn_listener(&current_hotkey_combo);
+                                }
                                 image_cache.clear();
                                 cached_pixmap = None;
                                 all_wallpapers = scan_wallpapers();
@@ -885,28 +899,38 @@ fn main() {
             }
 
             Event::AboutToWait => {
-                if is_visible && !is_closing {
-                    let now = Instant::now();
-                    if now.duration_since(last_config_check).as_millis() >= 250 {
-                        last_config_check = now;
-                        let current_mtime = Config::last_modified();
-                        if current_mtime != last_config_mtime {
-                            last_config_mtime = current_mtime;
-                            log_debug("Auto hot-reload: config.toml change detected on disk!");
-                            config = Config::load();
-                            image_cache.clear();
-                            cached_pixmap = None;
-                            all_wallpapers = scan_wallpapers();
-                            show_hidden = config.behavior.show_excluded;
-                            displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
-                            selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
-                            target_scroll = selected_index as f32;
+                let now = Instant::now();
+                if now.duration_since(last_config_check).as_millis() >= 500 {
+                    last_config_check = now;
+                    let current_mtime = Config::last_modified();
+                    if current_mtime != last_config_mtime {
+                        last_config_mtime = current_mtime;
+                        log_debug("Auto hot-reload: config.toml change detected on disk!");
+                        config = Config::load();
+                        if config.keybinds.toggle_gallery != current_hotkey_combo {
+                            log_debug(&format!("Hotkey config changed on disk: '{}' -> '{}'. Updating listener...", current_hotkey_combo, config.keybinds.toggle_gallery));
+                            current_hotkey_combo = config.keybinds.toggle_gallery.clone();
+                            _hotkey_listener = spawn_listener(&current_hotkey_combo);
+                        }
+                        image_cache.clear();
+                        cached_pixmap = None;
+                        all_wallpapers = scan_wallpapers();
+                        show_hidden = config.behavior.show_excluded;
+                        displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
+                        selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
+                        target_scroll = selected_index as f32;
+                        if is_visible {
                             window.request_redraw();
                         }
                     }
-                    if !is_animating_scroll {
-                        target.set_control_flow(ControlFlow::wait_duration(std::time::Duration::from_millis(250)));
-                    }
+                }
+
+                if is_closing || is_opening || is_animating_scroll {
+                    target.set_control_flow(ControlFlow::Poll);
+                } else if is_visible {
+                    target.set_control_flow(ControlFlow::wait_duration(std::time::Duration::from_millis(250)));
+                } else {
+                    target.set_control_flow(ControlFlow::wait_duration(std::time::Duration::from_millis(500)));
                 }
             }
 
