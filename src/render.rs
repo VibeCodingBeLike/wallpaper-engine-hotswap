@@ -279,6 +279,10 @@ impl ImageCache {
         Self { cache: HashMap::new() }
     }
 
+    pub fn clear(&mut self) {
+        self.cache.clear();
+    }
+
     pub fn get_or_bake_card(
         &mut self,
         path: &Path,
@@ -288,7 +292,7 @@ impl ImageCache {
         surface_hex: &str,
         dim_amount: f32,
     ) -> Option<&CachedCard> {
-        let key = format!("{}:{}_{}_{:.2}_{}", path.to_string_lossy(), card_w, card_h, lean, surface_hex);
+        let key = format!("{}:{}_{}_{:.2}_{}_{:.2}", path.to_string_lossy(), card_w, card_h, lean, surface_hex, dim_amount);
         if !self.cache.contains_key(&key) {
             let card_bbox_w = (card_w as f32 + lean * 2.0).ceil() as u32;
             let mut baked = Pixmap::new(card_bbox_w, card_h)?;
@@ -929,8 +933,8 @@ pub fn render_gallery(
     if ui.show_hint_bar {
         let kb = &config.keybinds;
         let hint_text = format!(
-            "{} / {} Scroll   •   {} Apply   •   {} Exclude   •   {} Show Hidden   •   {} Switch Monitor   •   {} Close",
-            kb.left, kb.right, kb.apply_wallpaper, kb.toggle_exclude, kb.toggle_hidden, kb.switch_monitor, kb.close
+            "{} / {} Scroll   •   {} Apply   •   {} Exclude   •   {} Show Hidden   •   {} Switch Monitor   •   {} Reload   •   {} Close",
+            kb.left, kb.right, kb.apply_wallpaper, kb.toggle_exclude, kb.toggle_hidden, kb.switch_monitor, kb.reload_config, kb.close
         );
 
         let hint_w = fonts.text_width(&hint_text, 13.0, false);

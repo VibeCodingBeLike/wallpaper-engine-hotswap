@@ -336,6 +336,7 @@ fn main() {
     let mut selected_index = 0usize;
     let mut scroll_offset = 0.0f32;
     let mut target_scroll = 0.0f32;
+    let mut is_animating_scroll = false;
     let mut hovered_card: Option<usize> = None;
     let mut current_hitboxes: Vec<HitBox> = Vec::new();
     let mut cursor_pos = (0.0f32, 0.0f32);
@@ -345,6 +346,8 @@ fn main() {
     let mut last_click_time = Instant::now();
     let mut last_click_card: Option<usize> = None;
     let mut last_frame_time = Instant::now();
+    let mut last_config_mtime = Config::last_modified();
+    let mut last_config_check = Instant::now();
 
     let refresh_displayed = |all: &[WallpaperItem], cfg: &Config, mon: usize, show_h: bool| -> Vec<WallpaperItem> {
         let mon_key = format!("Monitor{}", mon);
@@ -374,7 +377,10 @@ fn main() {
                     is_closing = false;
                     fade_alpha = 1.0;
                     last_frame_time = Instant::now();
+                    last_config_mtime = Config::last_modified();
                     config = Config::load();
+                    image_cache.clear();
+                    cached_pixmap = None;
                     show_hidden = config.behavior.show_excluded;
                     all_wallpapers = scan_wallpapers();
 
@@ -666,6 +672,18 @@ fn main() {
                                 if let Some(wp) = displayed_wallpapers.get(selected_index) {
                                     let _ = Command::new("explorer").arg(&wp.folder_path).spawn();
                                 }
+                            } else if matches_key(&key, &kb.reload_config) || matches_key(&key, "f5") || matches_key(&key, "ctrl+r") {
+                                log_debug("Manual reload config triggered (F5 / Ctrl+R)");
+                                last_config_mtime = Config::last_modified();
+                                config = Config::load();
+                                image_cache.clear();
+                                cached_pixmap = None;
+                                all_wallpapers = scan_wallpapers();
+                                show_hidden = config.behavior.show_excluded;
+                                displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
+                                selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
+                                target_scroll = selected_index as f32;
+                                window.request_redraw();
                             }
                         }
                     }
@@ -714,7 +732,7 @@ fn main() {
 
                         // Smooth delta-time based animation interpolation
                         let diff = target_scroll - scroll_offset;
-                        let is_animating_scroll = diff.abs() > 0.001;
+                        is_animating_scroll = diff.abs() > 0.001;
                         let scroll_velocity = if is_animating_scroll {
                             // Frame-rate independent exponential decay matching 0.28 factor at 60Hz
                             let factor = 1.0 - (1.0 - 0.28f32).powf(dt * 60.0);
@@ -781,12 +799,40 @@ fn main() {
                         if is_closing || is_animating_scroll {
                             window.request_redraw();
                             target.set_control_flow(ControlFlow::Poll);
+                        } else if is_visible {
+                            target.set_control_flow(ControlFlow::wait_duration(std::time::Duration::from_millis(250)));
                         } else {
                             target.set_control_flow(ControlFlow::Wait);
                         }
                     }
 
                     _ => {}
+                }
+            }
+
+            Event::AboutToWait => {
+                if is_visible && !is_closing {
+                    let now = Instant::now();
+                    if now.duration_since(last_config_check).as_millis() >= 250 {
+                        last_config_check = now;
+                        let current_mtime = Config::last_modified();
+                        if current_mtime != last_config_mtime {
+                            last_config_mtime = current_mtime;
+                            log_debug("Auto hot-reload: config.toml change detected on disk!");
+                            config = Config::load();
+                            image_cache.clear();
+                            cached_pixmap = None;
+                            all_wallpapers = scan_wallpapers();
+                            show_hidden = config.behavior.show_excluded;
+                            displayed_wallpapers = refresh_displayed(&all_wallpapers, &config, active_monitor_idx, show_hidden);
+                            selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
+                            target_scroll = selected_index as f32;
+                            window.request_redraw();
+                        }
+                    }
+                    if !is_animating_scroll {
+                        target.set_control_flow(ControlFlow::wait_duration(std::time::Duration::from_millis(250)));
+                    }
                 }
             }
 

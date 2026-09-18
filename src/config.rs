@@ -173,6 +173,8 @@ pub struct KeybindsConfig {
     pub toggle_hidden: String,
     #[serde(default = "default_open_in_explorer")]
     pub open_in_explorer: String,
+    #[serde(default = "default_reload_config")]
+    pub reload_config: String,
 }
 
 fn default_toggle_gallery() -> String { "ctrl+alt+g".to_string() }
@@ -189,6 +191,7 @@ fn default_switch_monitor() -> String { "tab".to_string() }
 fn default_toggle_exclude() -> String { "x".to_string() }
 fn default_toggle_hidden() -> String { "h".to_string() }
 fn default_open_in_explorer() -> String { "e".to_string() }
+fn default_reload_config() -> String { "f5".to_string() }
 
 impl Default for KeybindsConfig {
     fn default() -> Self {
@@ -207,6 +210,7 @@ impl Default for KeybindsConfig {
             toggle_exclude: default_toggle_exclude(),
             toggle_hidden: default_toggle_hidden(),
             open_in_explorer: default_open_in_explorer(),
+            reload_config: default_reload_config(),
         }
     }
 }
@@ -273,13 +277,47 @@ impl Config {
         base.join("we-gallery").join("config.toml")
     }
 
+    pub fn last_modified() -> Option<std::time::SystemTime> {
+        fs::metadata(Self::config_path()).ok().and_then(|m| m.modified().ok())
+    }
+
     pub fn load() -> Self {
         let path = Self::config_path();
         if path.exists() {
             if let Ok(contents) = fs::read_to_string(&path) {
-                if let Ok(mut cfg) = toml::from_str::<Config>(&contents) {
-                    cfg.apply_theme_preset();
-                    return cfg;
+                if let Ok(val) = toml::from_str::<toml::Value>(&contents) {
+                    let mut cfg = Config::default();
+                    if let Some(preset) = val.get("theme").and_then(|t| t.get("preset")).and_then(|p| p.as_str()) {
+                        cfg.theme.preset = preset.to_string();
+                        cfg.apply_theme_preset();
+                    }
+                    if let Ok(user_cfg) = toml::from_str::<Config>(&contents) {
+                        if let Some(style_val) = val.get("style").and_then(|s| s.as_table()) {
+                            let mut final_style = cfg.style.clone();
+                            if style_val.contains_key("accent_color") { final_style.accent_color = user_cfg.style.accent_color.clone(); }
+                            if style_val.contains_key("bg_color") { final_style.bg_color = user_cfg.style.bg_color.clone(); }
+                            if style_val.contains_key("surface_color") { final_style.surface_color = user_cfg.style.surface_color.clone(); }
+                            if style_val.contains_key("overlay_color") { final_style.overlay_color = user_cfg.style.overlay_color.clone(); }
+                            if style_val.contains_key("muted_color") { final_style.muted_color = user_cfg.style.muted_color.clone(); }
+                            if style_val.contains_key("text_color") { final_style.text_color = user_cfg.style.text_color.clone(); }
+                            if style_val.contains_key("highlight_color") { final_style.highlight_color = user_cfg.style.highlight_color.clone(); }
+                            if style_val.contains_key("card_width") { final_style.card_width = user_cfg.style.card_width; }
+                            if style_val.contains_key("card_height") { final_style.card_height = user_cfg.style.card_height; }
+                            if style_val.contains_key("card_shear") { final_style.card_shear = user_cfg.style.card_shear; }
+                            if style_val.contains_key("border_width") { final_style.border_width = user_cfg.style.border_width; }
+                            if style_val.contains_key("dim_unselected") { final_style.dim_unselected = user_cfg.style.dim_unselected; }
+                            if style_val.contains_key("backdrop_opacity") { final_style.backdrop_opacity = user_cfg.style.backdrop_opacity; }
+                            if style_val.contains_key("border_glow") { final_style.border_glow = user_cfg.style.border_glow; }
+                            if style_val.contains_key("glow_radius") { final_style.glow_radius = user_cfg.style.glow_radius; }
+                            if style_val.contains_key("motion_blur") { final_style.motion_blur = user_cfg.style.motion_blur; }
+                            if style_val.contains_key("motion_blur_strength") { final_style.motion_blur_strength = user_cfg.style.motion_blur_strength; }
+                            cfg = user_cfg;
+                            cfg.style = final_style;
+                        } else {
+                            cfg = user_cfg;
+                        }
+                        return cfg;
+                    }
                 }
             }
         }
