@@ -237,8 +237,32 @@ fn trim_memory() {
     }
 }
 
-fn matches_key(key: &KeyEvent, action_key: &str) -> bool {
-    let target = action_key.trim().to_lowercase();
+fn matches_key(key: &KeyEvent, action_key: &str, ctrl: bool, alt: bool, shift: bool, sup: bool) -> bool {
+    let parts: Vec<&str> = action_key.split('+').map(|s| s.trim()).collect();
+
+    let mut need_ctrl = false;
+    let mut need_alt = false;
+    let mut need_shift = false;
+    let mut need_sup = false;
+    let mut base = "";
+
+    for part in &parts {
+        match part.to_lowercase().as_str() {
+            "hyper" => { need_ctrl = true; need_alt = true; need_shift = true; need_sup = true; }
+            "ctrl" | "control" => need_ctrl = true,
+            "alt" => need_alt = true,
+            "shift" => need_shift = true,
+            "win" | "super" | "windows" => need_sup = true,
+            _ => base = part,
+        }
+    }
+
+    // All required modifiers must match exactly
+    if ctrl != need_ctrl || alt != need_alt || shift != need_shift || sup != need_sup {
+        return false;
+    }
+
+    let target = base.trim().to_lowercase();
     match key.physical_key {
         PhysicalKey::Code(code) => match (code, target.as_str()) {
             (KeyCode::Escape, "escape" | "esc") => true,
@@ -252,16 +276,49 @@ fn matches_key(key: &KeyEvent, action_key: &str) -> bool {
             (KeyCode::Home, "home") => true,
             (KeyCode::End, "end") => true,
             (KeyCode::Tab, "tab") => true,
-            (KeyCode::KeyX, "x") => true,
-            (KeyCode::KeyH, "h") => true,
-            (KeyCode::KeyE, "e") => true,
             (KeyCode::Delete, "delete" | "del") => true,
-            (KeyCode::KeyA, "a") => true,
-            (KeyCode::KeyD, "d") => true,
-            (KeyCode::KeyW, "w") => true,
-            (KeyCode::KeyS, "s") => true,
-            (KeyCode::KeyQ, "q") => true,
             (KeyCode::Space, "space") => true,
+            (KeyCode::F1, "f1") => true,
+            (KeyCode::F2, "f2") => true,
+            (KeyCode::F3, "f3") => true,
+            (KeyCode::F4, "f4") => true,
+            (KeyCode::F5, "f5") => true,
+            (KeyCode::F6, "f6") => true,
+            (KeyCode::F7, "f7") => true,
+            (KeyCode::F8, "f8") => true,
+            (KeyCode::F9, "f9") => true,
+            (KeyCode::F10, "f10") => true,
+            (KeyCode::F11, "f11") => true,
+            (KeyCode::F12, "f12") => true,
+            // Single letter/digit keys
+            (kc, t) if t.len() == 1 => {
+                let c = t.chars().next().unwrap();
+                if c.is_ascii_alphabetic() {
+                    let expected = match c.to_ascii_uppercase() {
+                        'A' => KeyCode::KeyA, 'B' => KeyCode::KeyB, 'C' => KeyCode::KeyC,
+                        'D' => KeyCode::KeyD, 'E' => KeyCode::KeyE, 'F' => KeyCode::KeyF,
+                        'G' => KeyCode::KeyG, 'H' => KeyCode::KeyH, 'I' => KeyCode::KeyI,
+                        'J' => KeyCode::KeyJ, 'K' => KeyCode::KeyK, 'L' => KeyCode::KeyL,
+                        'M' => KeyCode::KeyM, 'N' => KeyCode::KeyN, 'O' => KeyCode::KeyO,
+                        'P' => KeyCode::KeyP, 'Q' => KeyCode::KeyQ, 'R' => KeyCode::KeyR,
+                        'S' => KeyCode::KeyS, 'T' => KeyCode::KeyT, 'U' => KeyCode::KeyU,
+                        'V' => KeyCode::KeyV, 'W' => KeyCode::KeyW, 'X' => KeyCode::KeyX,
+                        'Y' => KeyCode::KeyY, 'Z' => KeyCode::KeyZ,
+                        _ => return false,
+                    };
+                    kc == expected
+                } else if c.is_ascii_digit() {
+                    let expected = match c {
+                        '0' => KeyCode::Digit0, '1' => KeyCode::Digit1, '2' => KeyCode::Digit2,
+                        '3' => KeyCode::Digit3, '4' => KeyCode::Digit4, '5' => KeyCode::Digit5,
+                        '6' => KeyCode::Digit6, '7' => KeyCode::Digit7, '8' => KeyCode::Digit8,
+                        '9' => KeyCode::Digit9, _ => return false,
+                    };
+                    kc == expected
+                } else {
+                    false
+                }
+            }
             _ => false,
         },
         _ => false,
@@ -333,6 +390,12 @@ fn main() {
     let mut cursor_pos = (0.0f32, 0.0f32);
     let mut show_hidden = config.behavior.show_excluded;
     let mut cached_pixmap: Option<tiny_skia::Pixmap> = None;
+
+    // Live modifier key state — updated by ModifiersChanged events
+    let mut mod_ctrl = false;
+    let mut mod_alt = false;
+    let mut mod_shift = false;
+    let mut mod_sup = false;
 
     let mut last_click_time = Instant::now();
     let mut last_click_card: Option<usize> = None;
@@ -559,68 +622,76 @@ fn main() {
                         }
                     }
 
+                    WindowEvent::ModifiersChanged(mods) => {
+                        mod_ctrl  = mods.state().control_key();
+                        mod_alt   = mods.state().alt_key();
+                        mod_shift = mods.state().shift_key();
+                        mod_sup   = mods.state().super_key();
+                    }
+
                     WindowEvent::KeyboardInput { event: key, .. } => {
                         if is_closing {
                             return;
                         }
                         if key.state == ElementState::Pressed {
                             let kb = &config.keybinds;
+                            let mk = |k: &str| matches_key(&key, k, mod_ctrl, mod_alt, mod_shift, mod_sup);
 
-                            if matches_key(&key, &kb.close) {
+                            if mk(&kb.close) {
                                 is_closing = true;
                                 window.request_redraw();
-                            } else if matches_key(&key, &kb.apply_wallpaper) {
+                            } else if mk(&kb.apply_wallpaper) {
                                 if let Some(wp) = displayed_wallpapers.get(selected_index) {
                                     engine_ipc::open_wallpaper(&wp.file_target, active_monitor_idx as u32);
                                     is_closing = true;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.apply_to_all) {
+                            } else if mk(&kb.apply_to_all) {
                                 if let Some(wp) = displayed_wallpapers.get(selected_index) {
                                     let mon_count = window.available_monitors().count() as u32;
                                     engine_ipc::open_wallpaper_on_all(&wp.file_target, mon_count);
                                     is_closing = true;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.left) {
+                            } else if mk(&kb.left) {
                                 let count = displayed_wallpapers.len();
                                 if count > 0 {
                                     selected_index = if selected_index == 0 { count - 1 } else { selected_index - 1 };
                                     target_scroll -= 1.0;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.right) {
+                            } else if mk(&kb.right) {
                                 let count = displayed_wallpapers.len();
                                 if count > 0 {
                                     selected_index = (selected_index + 1) % count;
                                     target_scroll += 1.0;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.page_left) {
+                            } else if mk(&kb.page_left) {
                                 let count = displayed_wallpapers.len();
                                 if count > 0 {
                                     selected_index = selected_index.saturating_sub(4);
                                     target_scroll = selected_index as f32;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.page_right) {
+                            } else if mk(&kb.page_right) {
                                 let count = displayed_wallpapers.len();
                                 if count > 0 {
                                     selected_index = (selected_index + 4).min(count - 1);
                                     target_scroll = selected_index as f32;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.first) {
+                            } else if mk(&kb.first) {
                                 selected_index = 0;
                                 target_scroll = 0.0;
                                 window.request_redraw();
-                            } else if matches_key(&key, &kb.last) {
+                            } else if mk(&kb.last) {
                                 if !displayed_wallpapers.is_empty() {
                                     selected_index = displayed_wallpapers.len() - 1;
                                     target_scroll = selected_index as f32;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.switch_monitor) {
+                            } else if mk(&kb.switch_monitor) {
                                 let count = window.available_monitors().count();
                                 if count > 0 {
                                     active_monitor_idx = (active_monitor_idx + 1) % count;
@@ -643,7 +714,7 @@ fn main() {
                                     target_scroll = start_idx as f32;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.toggle_exclude) {
+                            } else if mk(&kb.toggle_exclude) {
                                 if let Some(wp) = displayed_wallpapers.get(selected_index) {
                                     let mon_key = format!("Monitor{}", active_monitor_idx);
                                     config.toggle_excluded(&mon_key, &wp.id);
@@ -652,7 +723,7 @@ fn main() {
                                     target_scroll = selected_index as f32;
                                     window.request_redraw();
                                 }
-                            } else if matches_key(&key, &kb.toggle_hidden) {
+                            } else if mk(&kb.toggle_hidden) {
                                 show_hidden = !show_hidden;
                                 config.behavior.show_excluded = show_hidden;
                                 let _ = config.save();
@@ -660,11 +731,14 @@ fn main() {
                                 selected_index = selected_index.min(displayed_wallpapers.len().saturating_sub(1));
                                 target_scroll = selected_index as f32;
                                 window.request_redraw();
-                            } else if matches_key(&key, &kb.open_in_explorer) {
+                            } else if mk(&kb.open_in_explorer) {
                                 if let Some(wp) = displayed_wallpapers.get(selected_index) {
                                     let _ = Command::new("explorer").arg(&wp.folder_path).spawn();
                                 }
-                            } else if matches_key(&key, &kb.reload_config) || matches_key(&key, "f5") || matches_key(&key, "ctrl+r") {
+                            } else if mk(&kb.reload_config)
+                                || matches_key(&key, "f5",     false, false, false, false)
+                                || matches_key(&key, "ctrl+r", true,  false, false, false)
+                            {
                                 log_debug("Manual reload config triggered (F5 / Ctrl+R)");
                                 last_config_mtime = Config::last_modified();
                                 config = Config::load();
