@@ -1,0 +1,73 @@
+# =============================================================================
+# Wallpaper Engine Hotswap - Configuration File
+# Location: %APPDATA%\we-gallery\config.toml
+# =============================================================================
+
+[theme]
+# Color palette preset. Default: "rose-pine-moon"
+preset = "rose-pine-moon"
+
+[style]
+# Hex color codes (matching Rosé Pine Moon palette)
+accent_color = "#eb6f92"       # Love (accent & active selection)
+bg_color = "#232136"           # Base backdrop
+surface_color = "#2a273f"      # Card / container surface
+overlay_color = "#393552"      # Secondary container
+muted_color = "#6e6a86"        # Hint & secondary text
+text_color = "#e0def4"         # Foreground text
+highlight_color = "#44415a"    # Borders & dividers
+
+# Card Strip Dimensions & Geometry
+card_width = 300               # Width of each card in pixels
+card_height = 533              # Height of each card in pixels
+card_shear = 0.21              # Shear slope for leaning parallelogram cards
+border_width = 2.0             # Selection border thickness in pixels
+dim_unselected = 0.40          # Darkness factor for non-focused cards (0.0 to 1.0)
+backdrop_opacity = 0.72        # Translucency of the background overlay (0.0 to 1.0)
+
+# Glow & Bloom
+border_glow = true             # Enable soft aura / bloom around the selected card
+glow_radius = 8.0              # Radius of the glow bloom in pixels (2.0 to 20.0)
+
+# ReelSmart-Style Motion Blur (RSMB)
+motion_blur = true             # Enable velocity-adaptive directional motion blur during scroll
+motion_blur_strength = 1.0     # Multiplier for motion streak length (0.5 to 2.0)
+
+[ui]
+show_top_bar = true            # Show monitor tabs, wallpaper title pill, and buttons
+show_monitor_tabs = true       # Show clickable monitor selector tabs
+show_title = true              # Show center active wallpaper title pill
+show_hidden_button = true      # Show "Show/Hide Excluded" toggle button
+show_close_button = true       # Show close button (X) in top bar
+show_hint_bar = true           # Show keyboard shortcut legend pill at the bottom
+show_hidden_badge = true       # Display "[HIDDEN]" badge on excluded cards
+tint_excluded = true           # Tint excluded wallpaper cards with accent shade
+dim_unselected = true          # Apply dimming to unselected cards
+show_selection_border = true   # Draw pink highlight border around focused/hovered card
+close_on_backdrop_click = true # Close gallery when clicking outside cards and buttons
+close_on_focus_loss = true     # Close gallery when another window takes focus
+
+[keybinds]
+toggle_gallery = "ctrl+alt+g"  # Global hotkey to summon / dismiss gallery
+apply_wallpaper = "return"     # Apply selected wallpaper to active monitor
+apply_to_all = "ctrl+return"   # Apply selected wallpaper to all connected monitors
+close = "escape"               # Close gallery
+left = "left"                  # Scroll left by 1 card
+right = "right"                # Scroll right by 1 card
+page_left = "pageup"           # Jump scroll left by 5 cards
+page_right = "pagedown"        # Jump scroll right by 5 cards
+first = "home"                 # Jump to first wallpaper
+last = "end"                   # Jump to last wallpaper
+switch_monitor = "tab"         # Switch target monitor tab
+toggle_exclude = "x"           # Toggle hidden/excluded status for selected wallpaper
+toggle_hidden = "h"            # Toggle visibility of hidden wallpapers
+open_in_explorer = "e"         # Open active wallpaper folder in Windows Explorer
+
+[behavior]
+follow_cursor = true           # Open gallery on the monitor where mouse cursor resides
+show_excluded = false          # Start gallery with excluded wallpapers hidden by default
+
+[excluded_wallpapers]
+# Wallpapers excluded per monitor (format: Monitor<Index> = ["id1", "id2", ...])
+Monitor0 = []
+Monitor1 = []

@@ -1,0 +1,47 @@
+[package]
+name = "wallpaper-engine-hotswap"
+version = "0.2.0"
+edition = "2021"
+authors = ["Kat"]
+description = "High-performance stand-alone Wallpaper Engine gallery & switcher for Windows in Rosé Pine Moon"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Kat/wallpaper-engine-hotswap"
+keywords = ["wallpaper-engine", "gallery", "windows", "rose-pine", "desktop"]
+categories = ["gui", "multimedia"]
+
+[[bin]]
+name = "we-gallery"
+path = "src/main.rs"
+
+[dependencies]
+winit = "0.29"
+softbuffer = "0.4"
+tiny-skia = "0.11"
+bytemuck = "1.25"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+dirs = "5.0"
+fontdue = "0.9"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_Graphics_Gdi",
+    "Win32_System_DataExchange",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
+    "Win32_Graphics_Dwm"
+] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
