@@ -50,8 +50,7 @@ Inspired by YASB's `wallpaperswidget`, but completely decoupled: zero Python run
 | `F5` / `Ctrl + R` | Force reload configuration & re-scan wallpaper library |
 | `Escape` | Smooth fade-out and close |
 | **Mouse Wheel** | Fluid momentum scroll |
-| **Left Click** | Select card / switch monitor / toggle buttons |
-| **Double Click** | Apply wallpaper & close |
+| **Left Click** | Immediately apply clicked wallpaper & close (or switch monitor / toggle button) |
 
 ---
 

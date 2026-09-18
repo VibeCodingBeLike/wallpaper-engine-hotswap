@@ -401,8 +401,6 @@ fn main() {
     let mut mod_shift = false;
     let mut mod_sup = false;
 
-    let mut last_click_time = Instant::now();
-    let mut last_click_card: Option<usize> = None;
     let mut last_frame_time = Instant::now();
     let mut last_config_mtime = Config::last_modified();
     let mut last_config_check = Instant::now();
@@ -609,19 +607,12 @@ fn main() {
                                     }
                                 }
                                 Some(HitAction::SelectCard(idx)) => {
-                                    let now = Instant::now();
-                                    if last_click_card == Some(idx) && now.duration_since(last_click_time).as_millis() < 400 {
-                                        // Double click -> Apply wallpaper & start smooth fade out
-                                        if let Some(wp) = displayed_wallpapers.get(idx) {
-                                            engine_ipc::open_wallpaper(&wp.file_target, active_monitor_idx as u32);
-                                            is_closing = true;
-                                            window.request_redraw();
-                                        }
-                                    } else {
+                                    // Single click -> Immediately select, apply wallpaper, and start smooth fade out
+                                    if let Some(wp) = displayed_wallpapers.get(idx) {
                                         selected_index = idx;
                                         target_scroll = idx as f32;
-                                        last_click_time = now;
-                                        last_click_card = Some(idx);
+                                        engine_ipc::open_wallpaper(&wp.file_target, active_monitor_idx as u32);
+                                        is_closing = true;
                                         window.request_redraw();
                                     }
                                 }
