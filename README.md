@@ -173,16 +173,29 @@ apply_wallpaper = "return"
 apply_to_all = "ctrl+return"
 close = "escape"
 reload_config = "f5"           # Manual config reload & re-scan
+```
 
-# Layer 1: Soft-hidden wallpapers (toggle in-app with 'x', reveal with 'h')
-# Ideal for NSFW content or clutter you want hidden by default
+---
+
+### 🙈 Two Layers of Hidden Wallpapers
+
+`we-gallery` features a dual-layer hiding system designed specifically for managing sensitive (NSFW) content versus incompatible (e.g. portrait orientation) wallpapers:
+
+| Layer | Section in `config.toml` | In-App Control | Reveal with `h`? | Best Used For |
+| :--- | :--- | :--- | :--- | :--- |
+| **Layer 1: Soft-Hidden** | `[excluded_wallpapers]` | Press **`x`** to toggle on selected card | **Yes** (press **`h`** to reveal with `[HIDDEN]` badge) | NSFW wallpapers, temporary clutter, situational picks |
+| **Layer 2: Permanently Disabled** | `[disabled_wallpapers]` | **Config-only** (cannot be toggled in-app) | **No** (never shown under any circumstances) | Portrait wallpapers on landscape monitors, broken items |
+
+#### Example Usage
+```toml
+# Layer 1: Soft-hidden (browse normally hidden, but press 'h' to reveal them)
 [excluded_wallpapers]
-Monitor0 = ["nsfw_wallpaper_id"]
+Monitor0 = ["nsfw_wallpaper_id", "clutter_wallpaper_id"]
 
-# Layer 2: Permanently disabled wallpapers (ONLY editable via TOML, NEVER shown)
-# Ideal for portrait wallpapers on landscape monitors or broken wallpapers
+# Layer 2: Permanently disabled (NEVER visible in the gallery, even when pressing 'h')
 [disabled_wallpapers]
-Monitor0 = ["portrait_wallpaper_id"]
+Monitor0 = ["Clochard_Portrait_Custom"]  # Portrait wallpaper on landscape monitor
+global   = ["corrupted_workshop_item"]   # Disabled across all monitors
 ```
 
 ---
