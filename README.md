@@ -15,14 +15,17 @@ Inspired by YASB's `wallpaperswidget`, but completely decoupled: zero Python run
 
 ## ✨ Features
 
-- **🚀 Instant Global Hotkey**: Summon and dismiss anywhere in Windows via `Ctrl + Alt + G` (customizable).
-- **🏎️ 240Hz+ Ultra-Low Frame Time**: Custom SIMD software rasterizer achieving **~1.9 ms static frames (>500 FPS)** and **~2.7 ms scroll frames (>370 FPS)**.
+- **🚀 Instant Global Hotkey & Hyper Key**: Summon and dismiss anywhere in Windows via `Ctrl + Alt + G`, `hyper+up`, or any custom combo. Full support for `hyper` (Ctrl+Shift+Win+Alt), `super`/`win`, arrow keys, and function keys.
+- **🔄 Live Hot-Reloading**: Changes to `config.toml`—including theme colors, UI toggles, and global hotkeys—are picked up automatically in real time without restarting the app.
+- **🌸 Smooth 100ms Fade In & Out**: Frameless hardware-accelerated opacity transitions when opening and closing the gallery for a clean, seamless desktop feel.
+- **🏎️ 240Hz+ Ultra-Low Frame Time**: Custom SIMD software rasterizer achieving **~1.9 ms static frames (>500 FPS)** and **~2.7 ms scroll frames (>370 FPS)** with uncapped `DwmFlush` V-sync.
 - **🎬 ReelSmart-Style Motion Blur (RSMB)**: Velocity-adaptive 7-tap directional shutter blur vectorized via **AVX2 SIMD** (<0.8ms). Fast flicks streak authentically while slow scrolls stay razor-sharp.
+- **🧠 Bounded LRU Image Cache**: Intelligent LRU card cache (capped at 40 entries) keeps memory consumption flat (~100–150 MB) even across massive Steam Workshop libraries.
 - **🖥️ Multi-Monitor EDID Detection**: Reads raw Windows GDI & EDID hardware descriptors to show real monitor names (e.g. `LG ULTRAGEAR+`, `GS27QA`) instead of generic device paths.
 - **🎯 Pixel-Perfect Parallelogram Hitboxes**: Exact mathematical point-in-polygon hit testing matching the leaning card shear angle—zero misclicks or overlapping edge conflicts.
 - **🪟 Real Wallpaper Engine IPC**: Direct Win32 IPC communication with `wallpaper32.exe` / `wallpaper64.exe` to inspect active wallpapers per-monitor and apply wallpapers with zero lag.
 - **🚫 Per-Monitor Exclusion System**: Press `x` to exclude/hide wallpapers per monitor. Press `h` to view excluded wallpapers with a distinct accent tint and `[HIDDEN]` badge.
-- **🌸 Rosé Pine Moon Aesthetic**: Parallelogram leaning cards, soft bloom aura glow, customizable card shear slope, translucent backdrops, and smooth 100ms fade-out window transitions.
+- **🌸 Rosé Pine Moon Aesthetic**: Parallelogram leaning cards, soft bloom aura glow, customizable card shear slope, translucent backdrops, and polished Title-Case hint bar shortcuts.
 - **🌏 Full CJK & Emoji Unicode Rendering**: Comprehensive font fallback hierarchy supporting English, Japanese (Kanji/Kana), Chinese, Korean, symbols, and emojis.
 - **🔋 Zero Background Resource Usage**: Pauses CPU completely via OS event pump when hidden (0% CPU / 0% GPU).
 
@@ -32,8 +35,8 @@ Inspired by YASB's `wallpaperswidget`, but completely decoupled: zero Python run
 
 | Key | Action |
 | :--- | :--- |
-| `Ctrl + Alt + G` | Toggle gallery window (Global hotkey from any application) |
-| `Left` / `Right` | Scroll by 1 card |
+| `Ctrl + Alt + G` / `Hyper + Up` | Toggle gallery window (Global hotkey customizable in `config.toml`) |
+| `Left` / `Right` (or `←` / `→`) | Scroll by 1 card |
 | `PageUp` / `PageDown` | Fast scroll by 5 cards |
 | `Home` / `End` | Jump to first / last wallpaper |
 | `Return` (Enter) | Apply selected wallpaper to active monitor |
@@ -42,6 +45,7 @@ Inspired by YASB's `wallpaperswidget`, but completely decoupled: zero Python run
 | `x` | Toggle exclude/hide status for selected wallpaper on current monitor |
 | `h` | Toggle display of hidden/excluded wallpapers |
 | `e` | Open selected wallpaper directory in Windows Explorer |
+| `F5` / `Ctrl + R` | Force reload configuration & re-scan wallpaper library |
 | `Escape` | Smooth fade-out and close |
 | **Mouse Wheel** | Fluid momentum scroll |
 | **Left Click** | Select card / switch monitor / toggle buttons |
@@ -133,7 +137,9 @@ Output packages will be generated in the `dist/` directory.
 
 ## ⚙️ Configuration Reference
 
-Configuration is stored in **`~/.config/we-gallery/config.toml`** (or `%USERPROFILE%\.config\we-gallery\config.toml`). A documented template is provided in [`config.example.toml`](config.example.toml).
+Configuration is stored in **`~/.config/we-gallery/config.toml`** (or `%USERPROFILE%\.config\we-gallery\config.toml`). The app features live hot-reloading: changes to `config.toml` are applied instantly without restarting.
+
+A fully documented template is provided in [`config.example.toml`](config.example.toml).
 
 ```toml
 [theme]
@@ -151,11 +157,20 @@ glow_radius = 8.0              # Glow radius in pixels
 motion_blur = true             # ReelSmart-style directional motion blur
 motion_blur_strength = 1.0     # Streak multiplier
 
+[ui]
+show_top_bar = true            # Top header bar
+show_hint_bar = true           # Bottom keyboard shortcut hint bar
+show_selection_border = true   # Highlight border on active card
+close_on_backdrop_click = true # Close gallery when clicking outside cards
+close_on_focus_loss = true     # Close gallery when another window takes focus
+
 [keybinds]
-toggle_gallery = "ctrl+alt+g"  # Global summon hotkey
+# Supported modifiers: ctrl, alt, shift, win / super, and hyper (ctrl+shift+win+alt)
+toggle_gallery = "hyper+up"    # Global summon hotkey (e.g. "hyper+up", "ctrl+alt+g")
 apply_wallpaper = "return"
 apply_to_all = "ctrl+return"
 close = "escape"
+reload_config = "f5"           # Manual config reload & re-scan
 ```
 
 ---
