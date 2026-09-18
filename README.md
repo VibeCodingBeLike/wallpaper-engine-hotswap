@@ -24,7 +24,9 @@ Inspired by YASB's `wallpaperswidget`, but completely decoupled: zero Python run
 - **🖥️ Multi-Monitor EDID Detection**: Reads raw Windows GDI & EDID hardware descriptors to show real monitor names (e.g. `LG ULTRAGEAR+`, `GS27QA`) instead of generic device paths.
 - **🎯 Pixel-Perfect Parallelogram Hitboxes**: Exact mathematical point-in-polygon hit testing matching the leaning card shear angle—zero misclicks or overlapping edge conflicts.
 - **🪟 Real Wallpaper Engine IPC**: Direct Win32 IPC communication with `wallpaper32.exe` / `wallpaper64.exe` to inspect active wallpapers per-monitor and apply wallpapers with zero lag.
-- **🚫 Per-Monitor Exclusion System**: Press `x` to exclude/hide wallpapers per monitor. Press `h` to view excluded wallpapers with a distinct accent tint and `[HIDDEN]` badge.
+- **🚫 Two Layers of Hidden Wallpapers**:
+  - *Layer 1 (Soft-hidden)*: Press `x` to exclude/hide wallpapers (e.g. NSFW). Press `h` to reveal them with an accent tint and `[HIDDEN]` badge.
+  - *Layer 2 (Permanently disabled)*: Configured via TOML (`[disabled_wallpapers]`), completely filtered out and **never** shown even with `h` (ideal for portrait wallpapers on landscape displays).
 - **🌸 Rosé Pine Moon Aesthetic**: Parallelogram leaning cards, soft bloom aura glow, customizable card shear slope, translucent backdrops, and polished Title-Case hint bar shortcuts.
 - **🌏 Full CJK & Emoji Unicode Rendering**: Comprehensive font fallback hierarchy supporting English, Japanese (Kanji/Kana), Chinese, Korean, symbols, and emojis.
 - **🔋 Zero Background Resource Usage**: Pauses CPU completely via OS event pump when hidden (0% CPU / 0% GPU).
@@ -171,6 +173,16 @@ apply_wallpaper = "return"
 apply_to_all = "ctrl+return"
 close = "escape"
 reload_config = "f5"           # Manual config reload & re-scan
+
+# Layer 1: Soft-hidden wallpapers (toggle in-app with 'x', reveal with 'h')
+# Ideal for NSFW content or clutter you want hidden by default
+[excluded_wallpapers]
+Monitor0 = ["nsfw_wallpaper_id"]
+
+# Layer 2: Permanently disabled wallpapers (ONLY editable via TOML, NEVER shown)
+# Ideal for portrait wallpapers on landscape monitors or broken wallpapers
+[disabled_wallpapers]
+Monitor0 = ["portrait_wallpaper_id"]
 ```
 
 ---
