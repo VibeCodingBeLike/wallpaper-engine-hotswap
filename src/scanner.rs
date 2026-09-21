@@ -25,31 +25,110 @@ struct ProjectJson {
     category: Option<String>,
 }
 
+fn find_steam_registry_path() -> Option<PathBuf> {
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_CURRENT_USER, KEY_READ, REG_SZ,
+    };
+
+    let subkey = "Software\\Valve\\Steam\0";
+    let subkey_w: Vec<u16> = subkey.encode_utf16().collect();
+    let mut hkey: HKEY = std::ptr::null_mut();
+
+    unsafe {
+        if RegOpenKeyExW(HKEY_CURRENT_USER, subkey_w.as_ptr(), 0, KEY_READ, &mut hkey) != 0 || hkey.is_null() {
+            return None;
+        }
+    }
+
+    let value_name = "SteamPath\0";
+    let value_name_w: Vec<u16> = value_name.encode_utf16().collect();
+    let mut type_out = 0u32;
+    let mut buffer: [u16; 512] = [0; 512];
+    let mut bytes_len = (buffer.len() * std::mem::size_of::<u16>()) as u32;
+
+    let status = unsafe {
+        RegQueryValueExW(
+            hkey,
+            value_name_w.as_ptr(),
+            std::ptr::null_mut(),
+            &mut type_out,
+            buffer.as_mut_ptr() as *mut u8,
+            &mut bytes_len,
+        )
+    };
+
+    unsafe {
+        RegCloseKey(hkey);
+    }
+
+    if status != 0 || type_out != REG_SZ {
+        return None;
+    }
+
+    let used = (bytes_len as usize / std::mem::size_of::<u16>())
+        .min(buffer.len())
+        .max(1);
+    let string_end = buffer[..used]
+        .iter()
+        .position(|&c| c == 0)
+        .unwrap_or(used);
+    let steam_path = String::from_utf16_lossy(&buffer[..string_end]).trim().to_string();
+    if steam_path.is_empty() {
+        return None;
+    }
+
+    let mut path = PathBuf::from(steam_path.replace('/', "\\"));
+    path = path.canonicalize().unwrap_or(path);
+    if path.exists() {
+        Some(path)
+    } else {
+        Some(PathBuf::from(steam_path.replace('/', "\\")))
+    }
+}
+
+fn parse_libraryfolders_vdf(vdf_path: &std::path::Path, libraries: &mut Vec<PathBuf>) {
+    let Ok(content) = fs::read_to_string(vdf_path) else {
+        return;
+    };
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if !trimmed.contains("\"path\"") {
+            continue;
+        }
+
+        let parts: Vec<&str> = trimmed.split('"').collect();
+        if parts.len() < 4 {
+            continue;
+        }
+
+        let path_str = parts[3].replace(r"\\", r"\");
+        let path = PathBuf::from(path_str.replace('/', "\\"));
+        if path.exists() && !libraries.iter().any(|lib| lib == &path) {
+            libraries.push(path);
+        }
+    }
+}
+
 fn find_steam_libraries() -> Vec<PathBuf> {
-    let mut libraries = vec![
-        PathBuf::from(r"C:\Program Files (x86)\Steam"),
-        PathBuf::from(r"C:\Program Files\Steam"),
-    ];
+    let mut libraries = Vec::new();
 
-    let vdf_paths = [
-        r"C:\Program Files (x86)\Steam\steamapps\libraryfolders.vdf",
-        r"C:\Program Files\Steam\steamapps\libraryfolders.vdf",
-    ];
+    for root in [
+        find_steam_registry_path(),
+        Some(PathBuf::from(r"C:\Program Files (x86)\Steam")),
+        Some(PathBuf::from(r"C:\Program Files\Steam")),
+    ] {
+        let Some(root) = root else {
+            continue;
+        };
 
-    for vdf in vdf_paths {
-        if let Ok(content) = fs::read_to_string(vdf) {
-            for line in content.lines() {
-                if line.contains("\"path\"") {
-                    let parts: Vec<&str> = line.split('"').collect();
-                    if parts.len() >= 4 {
-                        let path_str = parts[3].replace(r"\\", r"\");
-                        let p = PathBuf::from(path_str);
-                        if p.exists() && !libraries.contains(&p) {
-                            libraries.push(p);
-                        }
-                    }
-                }
-            }
+        if root.exists() && !libraries.iter().any(|lib| lib == &root) {
+            libraries.push(root.clone());
+        }
+
+        let vdf = root.join("steamapps").join("libraryfolders.vdf");
+        if vdf.exists() {
+            parse_libraryfolders_vdf(&vdf, &mut libraries);
         }
     }
 
